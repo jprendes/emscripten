@@ -423,11 +423,18 @@ var LibraryDylink = {
         // the table should be unchanged
         assert(table === originalTable);
         assert(table === wasmTable);
-        // verify that the new table region was filled in
-        for (var i = 0; i < tableSize; i++) {
-          assert(table.get(tableBase + i) !== undefined, 'table entry was not filled in');
-        }
 #endif
+        // verify that the new table region was filled in and add nre entries to functionsInTableMap
+        for (var i = 0; i < tableSize; i++) {
+          var item = table.get(tableBase + i);
+#if ASSERTIONS
+          assert(item !== undefined, 'table entry was not filled in');
+#endif
+          // Ignore null values.
+          if (item) {
+            functionsInTableMap.set(item, tableBase + i);
+          }
+        }
         moduleExports = relocateExports(instance.exports, memoryBase);
         if (!flags.allowUndefined) {
           reportUndefinedSymbols();
