@@ -67,7 +67,15 @@ var LibraryDylink = {
       '__cpp_exception',
       '__wasm_apply_data_relocs',
       '__dso_handle',
-      '__set_stack_limits'
+      '__set_stack_limits',
+      '__clang_call_terminate',
+#if USE_PTHREADS
+      '__wasm_init_memory_flag',
+      '__wasm_init_memory',
+      '__wasm_init_tls',
+      '__tls_size',
+      '__tls_align',
+#endif
     ].indexOf(symName) != -1
 #if SPLIT_MODULE
         // Exports synthesized by wasm-split should be prefixed with '%'
@@ -479,11 +487,19 @@ var LibraryDylink = {
         // the table should be unchanged
         assert(table === originalTable);
         assert(table === wasmTable);
-        // verify that the new table region was filled in
-        for (var i = 0; i < tableSize; i++) {
-          assert(table.get(tableBase + i) !== undefined, 'table entry was not filled in');
-        }
 #endif
+        // add new entries to functionsInTableMap
+        for (var i = 0; i < tableSize; i++) {
+          var item = table.get(tableBase + i);
+#if ASSERTIONS
+          // verify that the new table region was filled in
+          assert(item !== undefined, 'table entry was not filled in');
+#endif
+          // Ignore null values.
+          if (item) {
+            functionsInTableMap.set(item, tableBase + i);
+          }
+        }
         moduleExports = relocateExports(instance.exports, memoryBase);
         if (!flags.allowUndefined) {
           reportUndefinedSymbols();
