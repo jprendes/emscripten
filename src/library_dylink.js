@@ -255,7 +255,12 @@ var LibraryDylink = {
     err("getMemory: " + size + " runtimeInitialized=" + runtimeInitialized);
 #endif
     if (runtimeInitialized)
-      return _malloc(size);
+#if USE_PTHREADS
+      // in a pthread the module heap was allocated in the main thread before
+      // the runtime was initialized
+      if (!ENVIRONMENT_IS_PTHREAD)
+#endif
+        return _malloc(size);
     var ret = Module['___heap_base'];
     var end = (ret + size + 15) & -16;
 #if ASSERTIONS
@@ -410,9 +415,13 @@ var LibraryDylink = {
       // dlopen'ing the SIDE_MODULE.  Since we don't know the size of the explicitly initialized data
       // here, we just zero the whole thing, which is suboptimal, but should at least resolve bugs
       // from uninitialized memory.
-      for (var i = memoryBase; i < memoryBase + memorySize; i++) {
-        HEAP8[i] = 0;
-      }
+#if USE_PTHREADS
+      // in a pthread the module heap was already allocated and initialized in the main thread.
+      if (!ENVIRONMENT_IS_PTHREAD)
+#endif
+        for (var i = memoryBase; i < memoryBase + memorySize; i++) {
+          HEAP8[i] = 0;
+        }
       for (var i = tableBase; i < tableBase + tableSize; i++) {
         table.set(i, null);
       }
